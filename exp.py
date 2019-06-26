@@ -106,7 +106,7 @@ def train(args):
             loss = -ret_val[0]
 
             # print(loss.data)
-            loss_val = torch.sum(loss).data[0]
+            loss_val = torch.sum(loss).item()
             report_loss += loss_val
             report_examples += len(batch_examples)
             loss = torch.mean(loss)
@@ -115,7 +115,7 @@ def train(args):
                 att_probs = ret_val[1]
                 if att_probs:
                     sup_att_loss = -torch.log(torch.cat(att_probs)).mean()
-                    sup_att_loss_val = sup_att_loss.data[0]
+                    sup_att_loss_val = sup_att_loss.item()
                     report_sup_att_loss += sup_att_loss_val
 
                     loss += sup_att_loss

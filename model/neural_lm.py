@@ -65,7 +65,7 @@ class LSTMLanguageModel(nn.Module):
             h_t, (last_state, last_cell) = self.lstm(x_tm1_embed, h_tm1)
             h_t = self.dropout(h_t.view(-1))
             p_t = F.softmax(self.read_out(h_t), dim=-1)
-            x_t_wid = torch.multinomial(p_t).data[0]
+            x_t_wid = torch.multinomial(p_t).item()
             x_t = self.vocab.id2word[x_t_wid]
 
             if x_t == '</s>':
