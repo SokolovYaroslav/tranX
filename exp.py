@@ -36,8 +36,8 @@ if six.PY3:
     from datasets.wikisql.dataset import Query, DBEngine
 
 
-def init_config():
-    args = arg_parser.parse_args()
+def init_config(arg_parser, args_string):
+    args = arg_parser.parse_args(args_string)
 
     # seed the RNG
     torch.manual_seed(args.seed)
@@ -243,9 +243,9 @@ def test(args):
         pickle.dump(decode_results, open(args.save_decode_to, 'wb'))
 
 
-if __name__ == '__main__':
+def main(args_string=None):
     arg_parser = init_arg_parser()
-    args = init_config()
+    args = init_config(arg_parser, args_string)
     print(args, file=sys.stderr)
     if args.mode == 'train':
         train(args)
@@ -253,3 +253,7 @@ if __name__ == '__main__':
         test(args)
     else:
         raise RuntimeError('unknown mode')
+
+
+if __name__ == '__main__':
+    main()
