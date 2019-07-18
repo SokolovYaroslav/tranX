@@ -38,7 +38,7 @@ def init_arg_parser():
     arg_parser.add_argument('--evaluator', type=str, default='default_evaluator', required=False, help='name of evaluator class to use')
 
     #### Model configuration ####
-    arg_parser.add_argument('--lstm', choices=['lstm'], default='lstm', help='Type of LSTM used, currently only standard LSTM cell is supported')
+    arg_parser.add_argument('--lstm', choices=['lstm', 'transformer'], default='lstm', help='Type of LSTM used, currently only standard LSTM cell is supported')
 
     # Embedding sizes
     arg_parser.add_argument('--embed_size', default=128, type=int, help='Size of word embeddings')
@@ -50,6 +50,12 @@ def init_arg_parser():
     arg_parser.add_argument('--hidden_size', default=256, type=int, help='Size of LSTM hidden states')
     arg_parser.add_argument('--ptrnet_hidden_dim', default=32, type=int, help='Hidden dimension used in pointer network')
     arg_parser.add_argument('--att_vec_size', default=256, type=int, help='size of attentional vector')
+
+    # Transformer parameters
+    arg_parser.add_argument('--ffn_size', default=512, type=int, help='Size of ffn inner dim')
+    arg_parser.add_argument('--num_layers', default=1, type=int, help='Number of layers in Trasnformer')
+    arg_parser.add_argument('--num_heads', default=8, type=int, help='Number of heads in Multi-Head-Attention layer')
+    arg_parser.add_argument('--dropout_model', default=0.1, type=float, help='dropout p in Transformer layers')
 
     # readout layer
     arg_parser.add_argument('--no_query_vec_to_action_map', default=False, action='store_true',

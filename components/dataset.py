@@ -1,11 +1,14 @@
 # coding=utf-8
 from collections import OrderedDict
 
-import torch
 import numpy as np
+import torch
+
+from model.transformer_utils import subsequent_mask
+
 try:
     import cPickle as pickle
-except:
+except ImportError:
     import pickle
 
 from torch.autograd import Variable
@@ -30,7 +33,7 @@ class Dataset(object):
 
     @staticmethod
     def from_bin_file(file_path):
-        examples = pickle.load(open(file_path, 'rb'))
+        examples = pickle.load(open(file_path, "rb"))
         return Dataset(examples)
 
     def batch_iter(self, batch_size, shuffle=False):
@@ -40,7 +43,7 @@ class Dataset(object):
 
         batch_num = int(np.ceil(len(self.examples) / float(batch_size)))
         for batch_id in range(batch_num):
-            batch_ids = index_arr[batch_size * batch_id: batch_size * (batch_id + 1)]
+            batch_ids = index_arr[batch_size * batch_id : batch_size * (batch_id + 1)]
             batch_examples = [self.examples[i] for i in batch_ids]
             batch_examples.sort(key=lambda e: -len(e.src_sent))
 
@@ -71,6 +74,8 @@ class Batch(object):
 
         self.src_sents = [e.src_sent for e in self.examples]
         self.src_sents_len = [len(e.src_sent) for e in self.examples]
+
+        self.tgt_actions_len = [len(e.tgt_actions) for e in self.examples]
 
         self.grammar = grammar
         self.vocab = vocab
@@ -121,7 +126,9 @@ class Batch(object):
         self.primitive_idx_matrix = []
         self.gen_token_mask = []
         self.primitive_copy_mask = []
-        self.primitive_copy_token_idx_mask = np.zeros((self.max_action_num, len(self), max(self.src_sents_len)), dtype='float32')
+        self.primitive_copy_token_idx_mask = np.zeros(
+            (self.max_action_num, len(self), max(self.src_sents_len)), dtype="float32"
+        )
 
         for t in range(self.max_action_num):
             app_rule_idx_row = []
@@ -152,7 +159,7 @@ class Batch(object):
 
                         if self.copy and token in src_sent:
                             token_pos_list = [idx for idx, _token in enumerate(src_sent) if _token == token]
-                            self.primitive_copy_token_idx_mask[t, e_id, token_pos_list] = 1.
+                            self.primitive_copy_token_idx_mask[t, e_id, token_pos_list] = 1.0
                             copy_mask = 1
                             token_can_copy = True
 
@@ -199,21 +206,35 @@ class Batch(object):
         self.gen_token_mask = Variable(T.FloatTensor(self.gen_token_mask))
         self.primitive_copy_mask = Variable(T.FloatTensor(self.primitive_copy_mask))
         self.primitive_copy_token_idx_mask = Variable(torch.from_numpy(self.primitive_copy_token_idx_mask))
-        if self.cuda: self.primitive_copy_token_idx_mask = self.primitive_copy_token_idx_mask.cuda()
+        if self.cuda:
+            self.primitive_copy_token_idx_mask = self.primitive_copy_token_idx_mask.cuda()
 
     @property
     def primitive_mask(self):
-        return 1. - torch.eq(self.gen_token_mask + self.primitive_copy_mask, 0).float()
+        return 1.0 - torch.eq(self.gen_token_mask + self.primitive_copy_mask, 0).float()
 
     @cached_property
     def src_sents_var(self):
-        return nn_utils.to_input_variable(self.src_sents, self.vocab.source,
-                                          cuda=self.cuda)
+        return nn_utils.to_input_variable(self.src_sents, self.vocab.source, cuda=self.cuda)
 
     @cached_property
     def src_token_mask(self):
-        return nn_utils.length_array_to_mask_tensor(self.src_sents_len,
-                                                    cuda=self.cuda)
+        return nn_utils.length_array_to_mask_tensor(self.src_sents_len, cuda=self.cuda)
+
+    @cached_property
+    def src_token_mask_usual(self):
+        return nn_utils.length_array_to_mask_tensor(self.src_sents_len, cuda=self.cuda, valid_entry_has_mask_one=True)
+
+    @cached_property
+    def tgt_token_mask_usual(self):
+        return nn_utils.length_array_to_mask_tensor(self.tgt_actions_len, cuda=self.cuda, valid_entry_has_mask_one=True)
+
+    @cached_property
+    def tgt_mask(self):
+        """Create a mask to hide padding and future words."""
+        tgt_mask = self.tgt_token_mask_usual.unsqueeze(-2)
+        tgt_mask = tgt_mask & subsequent_mask(tgt_mask.size(-1)).type(tgt_mask.dtype)
+        return tgt_mask
 
     @cached_property
     def token_pos_list(self):
@@ -224,5 +245,3 @@ class Batch(object):
             aggregated_primitive_tokens = OrderedDict()
             for token_pos, token in enumerate(e.src_sent):
                 aggregated_primitive_tokens.setdefault(token, []).append(token_pos)
-
-
