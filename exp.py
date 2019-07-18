@@ -1,39 +1,29 @@
 # coding=utf-8
 from __future__ import print_function
 
-import argparse
-from itertools import chain
-
 import six.moves.cPickle as pickle
-from six.moves import xrange as range
-from six.moves import input
-import traceback
 
 import numpy as np
 import time
-import os
 import sys
 
 import torch
-from torch.autograd import Variable
 
 import evaluation
 from asdl import *
 from asdl.asdl import ASDLGrammar
 from common.registerable import Registrable
-from components.dataset import Dataset, Example
-from common.utils import update_args, init_arg_parser
-from datasets import *
-from model import nn_utils, utils
-
+from components.dataset import Dataset
+from common.utils import init_arg_parser
+from model import nn_utils
+from model.transformer_parser import TransformerParser
 from model.parser import Parser
-from model.utils import GloveHelper, get_parser_class
+
+from model.utils import GloveHelper
 
 if six.PY3:
     # import additional packages for wikisql dataset (works only under Python 3)
-    from model.wikisql.dataset import WikiSqlExample, WikiSqlTable, TableColumn
-    from model.wikisql.parser import WikiSqlParser
-    from datasets.wikisql.dataset import Query, DBEngine
+    pass
 
 
 def init_config(arg_parser, args_string):
@@ -124,7 +114,7 @@ def train(args):
 
             # clip gradient
             if args.clip_grad > 0.:
-                grad_norm = torch.nn.utils.clip_grad_norm(model.parameters(), args.clip_grad)
+                torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip_grad)
 
             optimizer.step()
 
@@ -144,6 +134,7 @@ def train(args):
             print('save model to [%s]' % model_file, file=sys.stderr)
             model.save(model_file)
 
+        is_better = True
         # perform validation
         if args.dev_file:
             if epoch % args.valid_every_epoch == 0:
@@ -246,7 +237,6 @@ def test(args):
 def main(args_string=None):
     arg_parser = init_arg_parser()
     args = init_config(arg_parser, args_string)
-    print(args, file=sys.stderr)
     if args.mode == 'train':
         train(args)
     elif args.mode == 'test':
